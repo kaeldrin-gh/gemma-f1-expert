@@ -1,0 +1,190 @@
+name: F1 Expert CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Weekly data refresh on Sundays at 02:00 UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff pytest
+        # Install minimal dependencies for testing (excluding heavy ML libraries)
+        pip install requests feedparser tqdm pandas numpy datasets
+    
+    - name: Lint with ruff
+      run: |
+        ruff check src/ data/ tests/ --output-format=github
+        ruff format --check src/ data/ tests/
+    
+    - name: Test data collection scripts
+      run: |
+        python -c "import data.fetch_jolpica; print('✅ fetch_jolpica imports OK')"
+        python -c "import data.scrape_press; print('✅ scrape_press imports OK')"
+        python -c "import data.build_dataset; print('✅ build_dataset imports OK')"
+    
+    - name: Test source modules
+      run: |
+        python -c "import src.prepare_dataset; print('✅ prepare_dataset imports OK')"
+        # Skip model-dependent modules in CI
+    
+    - name: Run basic tests
+      run: |
+        pytest tests/ -v -k "not test_model" --tb=short
+
+  weekly-data-refresh:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests feedparser tqdm pandas numpy
+    
+    - name: Fetch latest F1 data
+      run: |
+        mkdir -p data
+        python data/fetch_jolpica.py || echo "Jolpica fetch failed - continuing"
+        python data/scrape_press.py || echo "Press scrape failed - continuing"
+    
+    - name: Check data files
+      run: |
+        ls -la data/
+        if [ -f data/jolpica_raw.json ]; then
+          echo "✅ Jolpica data updated"
+          wc -l data/jolpica_raw.json
+        fi
+        if [ -f data/press_raw.json ]; then
+          echo "✅ Press data updated" 
+          wc -l data/press_raw.json
+        fi
+    
+    - name: Create Pull Request with updated data
+      if: success()
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "🔄 Weekly F1 data refresh"
+        title: "🔄 Weekly F1 Data Update"
+        body: |
+          Automated weekly refresh of F1 data sources:
+          
+          - 🏎️ Updated Jolpica API data
+          - 📰 Updated press releases and RSS feeds
+          - 📅 Data refresh date: ${{ github.run_id }}
+          
+          This PR contains the latest F1 data for model training.
+        branch: data-refresh-${{ github.run_number }}
+        delete-branch: true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-docs:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install documentation dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mkdocs mkdocs-material
+    
+    - name: Generate API documentation
+      run: |
+        mkdir -p docs/api
+        # Generate module documentation
+        python -c "
+        import inspect
+        import sys
+        sys.path.append('src')
+        
+        modules = ['prepare_dataset', 'train_lora', 'evaluate', 'generate']
+        
+        for module_name in modules:
+            try:
+                module = __import__(module_name)
+                with open(f'docs/api/{module_name}.md', 'w') as f:
+                    f.write(f'# {module_name}\\n\\n')
+                    f.write(f'{module.__doc__ or \"No documentation available.\"}\\n\\n')
+                    
+                    for name, obj in inspect.getmembers(module):
+                        if inspect.isclass(obj) or inspect.isfunction(obj):
+                            if not name.startswith('_'):
+                                f.write(f'## {name}\\n\\n')
+                                f.write(f'{obj.__doc__ or \"No documentation available.\"}\\n\\n')
+                print(f'✅ Generated docs for {module_name}')
+            except ImportError:
+                print(f'⚠️ Could not import {module_name}')
+        "
+    
+    - name: Build documentation
+      run: |
+        echo "# F1 Expert Documentation" > docs/index.md
+        echo "API documentation for the F1 Expert project." >> docs/index.md
+        echo "Generated on $(date)" >> docs/index.md
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs/
