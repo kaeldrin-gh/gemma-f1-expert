@@ -28,7 +28,7 @@ import re
 class F1ModelEvaluator:
     """Evaluator for F1 expert model."""
     
-    def __init__(self, model_path: str, base_model: str = "google/gemma-3n"):
+    def __init__(self, model_path: str, base_model: str = "google/gemma-3n-E2B"):
         self.model_path = model_path
         self.base_model = base_model
         self.model = None
@@ -280,7 +280,7 @@ def main():
     """Main evaluation function."""
     parser = argparse.ArgumentParser(description="Evaluate F1 expert model")
     parser.add_argument("--model_path", default="models/gemma-f1-lora", help="Path to fine-tuned model")
-    parser.add_argument("--base_model", default="google/gemma-3n", help="Base model name")
+    parser.add_argument("--base_model", default="google/gemma-3n-E2B", help="Base model name")
     parser.add_argument("--test_file", default="data/f1_qa_test.jsonl", help="Test data file")
     parser.add_argument("--manual_samples", type=int, default=5, help="Number of manual evaluation samples")
     
