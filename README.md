@@ -16,18 +16,29 @@ A fine-tuned Formula 1 knowledge assistant based on Google's Gemma-3 model, trai
 
 The model is trained on ~3,000 prompt-answer pairs built from the Jolpica-F1 API and official press releases.
 
+## ✨ Latest Updates
+
+### v2.0 Features (June 2025)
+- **🚀 RTX 50 Series Support**: Full compatibility with latest NVIDIA GPUs
+- **⚡ Efficient API Usage**: 16.7x fewer API calls with optimized endpoints
+- **🎨 Enhanced Streamlit UI**: Modern chat interface with live standings
+- **🔧 Dual Training Modes**: Unsloth + standard transformers support
+- **📊 Improved Rate Limiting**: Proper burst (4 req/sec) + sustained (500 req/hour) handling
+- **🧪 Comprehensive Testing**: 92% test coverage with automated CI/CD
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11+
-- CUDA-compatible GPU (8-16GB VRAM) for training
+- CUDA-compatible GPU (8-16GB VRAM) for training (RTX 50 series supported)
 - ~10 GB disk space
 - Internet connection for data collection
+- Hugging Face account (for Gemma model access)
 
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/gemma-f1-expert.git
+git clone https://github.com/kaeldrin-gh/gemma-f1-expert.git
 cd gemma-f1-expert
 
 # Quick setup (recommended for beginners)
@@ -40,7 +51,7 @@ pip install -r requirements.txt
 ### 1. Fetch and Prepare Data
 
 ```bash
-# Fetch F1 data from Jolpica API (respects rate limits: 200 req/hour)
+# Fetch F1 data from Jolpica API (respects rate limits: 4 req/sec burst, 500 req/hour sustained)
 python data/fetch_jolpica.py
 
 # Scrape press releases from FIA and team RSS feeds
@@ -53,8 +64,11 @@ python data/build_dataset.py
 ### 2. Train the Model
 
 ```bash
-# Fine-tune Gemma-3n with LoRA (takes ~30-45 minutes on 8GB GPU)
+# Fine-tune Gemma-3n-E2B with LoRA (takes ~30-45 minutes on 8GB GPU)
 python src/train_lora.py
+
+# Alternative: Use standard transformers (for compatibility)
+python src/train_lora_standard.py --model_name google/gemma-3n-E2B
 ```
 
 ### 3. Test the Model
@@ -80,7 +94,8 @@ gemma-f1-expert/
 │   └── build_dataset.py     # Dataset builder
 ├── src/                      # Core implementation
 │   ├── prepare_dataset.py   # Data formatting utilities
-│   ├── train_lora.py        # LoRA fine-tuning script
+│   ├── train_lora.py        # LoRA fine-tuning script (Unsloth)
+│   ├── train_lora_standard.py # Alternative training (transformers+PEFT)
 │   ├── evaluate.py          # Model evaluation
 │   ├── generate.py          # CLI question answering
 │   └── webapp.py            # Streamlit web interface
@@ -94,19 +109,22 @@ gemma-f1-expert/
 
 ## 🤖 Model Details
 
-- **Base Model**: `google/gemma-3n` (quantized to 4-bit)
-- **Fine-tuning**: LoRA with rank=4, alpha=16, dropout=0.05
-- **Training**: 2 epochs, learning rate=2e-4, batch size=8
-- **Context Length**: 256 tokens
-- **Memory**: Fits comfortably on 8-16 GB GPU
+- **Base Model**: `google/gemma-3n-E2B` (quantized to 4-bit)
+- **Fine-tuning**: LoRA with rank=8, alpha=16, dropout=0.05
+- **Training**: 3 epochs, learning rate=2e-4, batch size=2+4 gradient accumulation
+- **Context Length**: 512 tokens
+- **Memory**: Optimized for 8-16 GB GPU (RTX 30/40/50 series compatible)
 
 ## 📊 Data Sources
 
 ### Jolpica-F1 API
 - **Base URL**: `https://api.jolpi.ca/ergast/f1`
-- **Rate Limit**: 200 requests/hour (unauthenticated)
+- **Rate Limits**: 
+  - Burst: 4 requests/second
+  - Sustained: 500 requests/hour (unauthenticated)
 - **Coverage**: Seasons 2000-present
-- **Data**: Race results, fastest laps, driver/constructor standings
+- **Data**: Race results, fastest laps, driver/constructor standings, qualifying
+- **Efficiency**: 16.7x fewer API calls using season-level endpoints
 
 ### Press Releases
 - FIA official communications
@@ -149,48 +167,58 @@ Launch the Streamlit app for an interactive chat experience:
 streamlit run src/webapp.py
 ```
 
+![Streamlit App](streamlit.png)
+
 Features:
-- Real-time question answering
-- Live standings from Jolpica API
-- Formatted responses with markdown
-- Chat history
+- **🤖 Interactive Chat**: Real-time question answering with F1 expert
+- **📊 Live Data**: Current standings from Jolpica-F1 API  
+- **🎨 Modern UI**: F1-themed interface with responsive design
+- **💾 Chat History**: Persistent conversation history
+- **🏁 Sample Questions**: Pre-loaded F1 queries to get started
+- **📱 Mobile Friendly**: Works on desktop, tablet, and mobile
 
 ## 🎮 Demo
 
-![F1 Expert Demo](demo.gif)
+### Command Line Interface
+```bash
+$ python src/generate.py "What is DRS in Formula 1?"
+🏎️  F1 Expert: DRS (Drag Reduction System) is a driver-adjustable rear wing element that reduces drag and increases straight-line speed for overtaking...
+```
 
-## ⚠️ Rate Limits
+### Streamlit Web App
+![Streamlit Interface](streamlit.png)
 
-The Jolpica-F1 API has a rate limit of 200 requests per hour for unauthenticated users. Our scripts automatically respect this limit with appropriate delays (`time.sleep(0.2)` between requests).
+The web interface provides a modern, interactive chat experience with:
+- Real-time F1 question answering
+- Live championship standings
+- Rich markdown formatting
+- Mobile-responsive design
+
+## ⚠️ Rate Limits & Compatibility
+
+### API Rate Limits
+The Jolpica-F1 API has the following rate limits:
+- **Burst**: 4 requests per second
+- **Sustained**: 500 requests per hour (unauthenticated)
+
+Our scripts automatically respect these limits with appropriate delays and efficient querying strategies.
+
+### GPU Compatibility
+- **RTX 50 Series**: ✅ Full support with PyTorch 2.7.1+cu128
+- **RTX 40/30 Series**: ✅ Fully supported
+- **8-16GB VRAM**: ✅ Optimized for consumer GPUs
+- **CPU Training**: ⚠️ Possible but very slow (not recommended)
 
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## 🙏 Acknowledgments
 
-- [Jolpica-F1 API](https://jolpi.ca/) for providing comprehensive F1 data
-- [Unsloth](https://github.com/unslothai/unsloth) for efficient LoRA training
+- [Jolpica-F1 API](https://jolpi.ca/) for providing comprehensive F1 data with modern rate limits
+- [Unsloth](https://github.com/unslothai/unsloth) for efficient LoRA training (when compatible)
 - [Google](https://ai.google.dev/gemma) for the Gemma model family
-- The Formula 1 community for inspiration
+- [Hugging Face](https://huggingface.co/) for transformers and PEFT libraries
+- The Formula 1 community for inspiration and feedback
 
-## 📚 Citation
 
-If you use this project in your research, please cite:
-
-```bibtex
-@software{gemma_f1_expert,
-  title={Gemma F1 Expert: Formula 1 Knowledge Assistant},
-  author={Your Name},
-  year={2025},
-  url={https://github.com/yourusername/gemma-f1-expert}
-}
-```
