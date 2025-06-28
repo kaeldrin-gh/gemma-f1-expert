@@ -16,16 +16,6 @@ A fine-tuned Formula 1 knowledge assistant based on Google's Gemma-3 model, trai
 
 The model is trained on ~3,000 prompt-answer pairs built from the Jolpica-F1 API and official press releases.
 
-## ✨ Latest Updates
-
-### v2.0 Features (June 2025)
-- **🚀 RTX 50 Series Support**: Full compatibility with latest NVIDIA GPUs
-- **⚡ Efficient API Usage**: 16.7x fewer API calls with optimized endpoints
-- **🎨 Enhanced Streamlit UI**: Modern chat interface with live standings
-- **🔧 Dual Training Modes**: Unsloth + standard transformers support
-- **📊 Improved Rate Limiting**: Proper burst (4 req/sec) + sustained (500 req/hour) handling
-- **🧪 Comprehensive Testing**: 92% test coverage with automated CI/CD
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -115,37 +105,6 @@ gemma-f1-expert/
 - **Context Length**: 512 tokens
 - **Memory**: Optimized for 8-16 GB GPU (RTX 30/40/50 series compatible)
 
-## 📊 Data Sources
-
-### Jolpica-F1 API
-- **Base URL**: `https://api.jolpi.ca/ergast/f1`
-- **Rate Limits**: 
-  - Burst: 4 requests/second
-  - Sustained: 500 requests/hour (unauthenticated)
-- **Coverage**: Seasons 2000-present
-- **Data**: Race results, fastest laps, driver/constructor standings, qualifying
-- **Efficiency**: 16.7x fewer API calls using season-level endpoints
-
-### Press Releases
-- FIA official communications
-- Team newsrooms (last 2 seasons)
-- Race weekend summaries
-
-## 🔧 Development
-
-### Run Tests
-```bash
-pytest -v
-```
-
-### Code Quality
-```bash
-ruff check .
-ruff format .
-```
-
-### Data Refresh
-The GitHub Action automatically refreshes data weekly using the Jolpica API.
 
 ## 📝 Example Usage
 
@@ -177,22 +136,27 @@ Features:
 - **🏁 Sample Questions**: Pre-loaded F1 queries to get started
 - **📱 Mobile Friendly**: Works on desktop, tablet, and mobile
 
-## 🎮 Demo
-
 ### Command Line Interface
 ```bash
 $ python src/generate.py "What is DRS in Formula 1?"
 🏎️  F1 Expert: DRS (Drag Reduction System) is a driver-adjustable rear wing element that reduces drag and increases straight-line speed for overtaking...
 ```
 
-### Streamlit Web App
-![Streamlit Interface](streamlit.png)
+## 📊 Data Sources
 
-The web interface provides a modern, interactive chat experience with:
-- Real-time F1 question answering
-- Live championship standings
-- Rich markdown formatting
-- Mobile-responsive design
+### Jolpica-F1 API
+- **Base URL**: `https://api.jolpi.ca/ergast/f1`
+- **Rate Limits**: 
+  - Burst: 4 requests/second
+  - Sustained: 500 requests/hour (unauthenticated)
+- **Coverage**: Seasons 2000-present
+- **Data**: Race results, fastest laps, driver/constructor standings, qualifying
+- **Efficiency**: 16.7x fewer API calls using season-level endpoints
+
+### Press Releases
+- FIA official communications
+- Team newsrooms (last 2 seasons)
+- Race weekend summaries
 
 ## ⚠️ Rate Limits & Compatibility
 
@@ -220,5 +184,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - [Google](https://ai.google.dev/gemma) for the Gemma model family
 - [Hugging Face](https://huggingface.co/) for transformers and PEFT libraries
 - The Formula 1 community for inspiration and feedback
-
-
